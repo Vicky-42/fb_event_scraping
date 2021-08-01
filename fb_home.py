@@ -34,12 +34,6 @@ def event_scraper():
     # open events page and extract upcoming events
     page_links = pd.read_csv('event_sources.csv')
     df_csv = pd.DataFrame(columns=['Time','Name','ImageLink','Location','HostedBy','TicketLink','Info','Type','Co-ordinates','PageLink'])
-    image_num = 1
-    img_folder_path = os.path.join(os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')))
-    try:
-        os.mkdir(img_folder_path)
-    except:
-        pass
     for i, row in page_links.iterrows():
         driver.get(row['Page links'])
         try:
@@ -102,14 +96,16 @@ def event_scraper():
                 event_row.append('Event name does not exist')
             # save event image
             try:
-                image_url = driver.find_element_by_xpath(
-                        '//div[@class="do00u71z l9j0dhe7 k4urcfbm ni8dbmo4 stjgntxs"]/descendant::img[@data-imgperflogname="profileCoverPhoto"]'
-                    ).get_attribute('src')
-                urllib.request.urlretrieve(image_url, os.path.join(
-                        os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')), '{0}.png'.format(image_num)))
+                # image_url = driver.find_element_by_xpath(
+                #         '//div[@class="do00u71z l9j0dhe7 k4urcfbm ni8dbmo4 stjgntxs"]/descendant::img[@data-imgperflogname="profileCoverPhoto"]'
+                #     ).get_attribute('src')
+                # urllib.request.urlretrieve(image_url, os.path.join(
+                #         os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')), '{0}.png'.format(image_num)))
                 # event image link
-                event_row.append(os.path.join(os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')), '{0}.png'.format(image_num)))
-                image_num +=1
+                # event_row.append(os.path.join(os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')), '{0}.png'.format(image_num)))
+                event_row.append(driver.find_element_by_xpath(
+                        '//div[@class="do00u71z l9j0dhe7 k4urcfbm ni8dbmo4 stjgntxs"]/descendant::img[@data-imgperflogname="profileCoverPhoto"]'
+                    ).get_attribute('src'))
             except:
                 event_row.append('Event image does not exist')
             # event location
