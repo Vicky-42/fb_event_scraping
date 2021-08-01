@@ -1,10 +1,13 @@
+import time
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
-import sys, os,shutil, time
+import os
+import urllib.request
 import pandas as pd
 from datetime import datetime
 
@@ -30,6 +33,13 @@ def event_scraper():
     elementFinder('(//span[text()="Accept All"])[1]','click')
     # open events page and extract upcoming events
     page_links = pd.read_csv('event_sources.csv')
+    df_csv = pd.DataFrame(columns=['Time','Name','ImageLink','Location','HostedBy','TicketLink','Info','Type','Co-ordinates','PageLink'])
+    image_num = 1
+    img_folder_path = os.path.join(os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')))
+    try:
+        os.mkdir(img_folder_path)
+    except:
+        pass
     for i, row in page_links.iterrows():
         driver.get(row['Page links'])
         try:
@@ -44,40 +54,110 @@ def event_scraper():
             except:
                 more_events = False
         # for each event in the page
-        events = [event for event in driver.find_elements_by_xpath('//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]/descendant::div[@class="j83agx80 cbu4d94t mysgfdmx hddg9phg"]')]
+        events = [event for event in driver.find_elements_by_xpath(
+            '//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]/descendant::div[@class="j83agx80 cbu4d94t mysgfdmx hddg9phg"]')]
         for event_num in range(1,events.__len__()):
             event_row = []
             # click on the event link
-            events[event_num].find_element_by_xpath('./descendant::a').click()
+            events = [event for event in driver.find_elements_by_xpath(
+                '//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]/descendant::div[@class="j83agx80 cbu4d94t mysgfdmx hddg9phg"]')]
+            try:
+                events[event_num].find_element_by_xpath('./descendant::a').click()
+            except:
+                more_events = True
+                while more_events == True:
+                    try:
+                        elementFinder(
+                            '//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]/descendant::span[text()="See more"]',
+                            'click')
+                    except:
+                        more_events = False
+                try:
+                    events = [event for event in driver.find_elements_by_xpath(
+                        '//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]/descendant::div[@class="j83agx80 cbu4d94t mysgfdmx hddg9phg"]')]
+                    events[event_num].find_element_by_xpath('./descendant::a').click()
+                except:
+                    break
+            wait = WebDriverWait(driver, 20).until(EC.invisibility_of_element_located((By.XPATH,
+            '//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]')))
             # event time
-            event_row.append(driver.find_element_by_xpath(
-                '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[1]').get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[1]').get_attribute('innerText'))
+            except:
+                try:
+                    elementFinder('//span[text()="Reload Page"]','click')
+                    elementFinder('//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[1]')
+                    event_row.append(driver.find_element_by_xpath(
+                        '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[1]').get_attribute('innerText'))
+                except:
+                    event_row.append('Event time does not exist')
             # event name
-            event_row.append(driver.find_element_by_xpath(
-                '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[2]').get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[2]').get_attribute('innerText'))
+                print('Event: {0}'.format(driver.find_element_by_xpath(
+                    '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[2]').get_attribute('innerText')))
+            except:
+                event_row.append('Event name does not exist')
+            # save event image
+            try:
+                image_url = driver.find_element_by_xpath(
+                        '//div[@class="do00u71z l9j0dhe7 k4urcfbm ni8dbmo4 stjgntxs"]/descendant::img[@data-imgperflogname="profileCoverPhoto"]'
+                    ).get_attribute('src')
+                urllib.request.urlretrieve(image_url, os.path.join(
+                        os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')), '{0}.png'.format(image_num)))
+                # event image link
+                event_row.append(os.path.join(os.path.abspath(os.getcwd()), 'Images {0}'.format(datetime.today().strftime('%Y-%m-%d')), '{0}.png'.format(image_num)))
+                image_num +=1
+            except:
+                event_row.append('Event image does not exist')
             # event location
-            event_row.append(driver.find_element_by_xpath(
-                '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[3]').get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="j83agx80 cbu4d94t obtkqiv7 sv5sfqaa"]/div[3]').get_attribute('innerText'))
+            except:
+                event_row.append('Event location does not exist')
             # event hosted by
-            event_row.append(driver.find_element_by_xpath(
-                '//div[@class="sjgh65i0"]/descendant::span[contains(text(),"Event by ")]').get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="sjgh65i0"]/descendant::span[contains(text(),"Event by ")]').get_attribute('innerText'))
+            except:
+                event_row.append('Event host name does not exist')
             # event ticket link
-            event_row.append(driver.find_element_by_xpath(
-                '//div[@class="sjgh65i0"]/descendant::span[contains(text(),"Tickets")]/parent::div/following-sibling::div/span')
-                .get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="sjgh65i0"]/descendant::span[contains(text(),"Tickets")]/parent::div/following-sibling::div/span')
+                    .get_attribute('innerText'))
+            except:
+                event_row.append('Event ticket link does not exist')
             # event info
-            event_row.append(driver.find_element_by_xpath(
-                '(//div[@class="sjgh65i0"]/descendant::div[@class="dati1w0a hv4rvrfc"]/span)[1]')
-                .get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '(//div[@class="sjgh65i0"]/descendant::div[@class="dati1w0a hv4rvrfc"]/span)[1]')
+                    .get_attribute('innerText'))
+            except:
+                event_row.append('Event info does not exist')
             # event type
-            event_row.append(driver.find_element_by_xpath(
-                '//div[@class="sjgh65i0"]/descendant::div[@class="lhclo0ds j83agx80"]')
-                .get_attribute('innerText'))
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="sjgh65i0"]/descendant::div[@class="lhclo0ds j83agx80"]')
+                    .get_attribute('innerText'))
+            except:
+                event_row.append('Event type does not exist')
             # event coordinates
-            event_row.append(driver.find_element_by_xpath(
-                '(//div[@class="sjgh65i0"]/descendant::div[@class="j83agx80 cbu4d94t ew0dbk1b irj2b8pg"]/descendant::span)[2]'
-            ).get_attribute('innerText'))
-            print('great success')
+            try:
+                event_row.append(driver.find_element_by_xpath(
+                    '//div[@class="sjgh65i0"]/descendant::div[@class="ihqw7lf3"]/descendant::span[@class="d2edcug0 hpfvmrgz qv66sw1b c1et5uql lr9zc1uh a8c37x1j keod5gw0 nxhoafnm aigsh9s9 d3f4x2em fe6kdd0r mau55g9w c8b282yb iv3no6db jq4qci2q a3bd9o3v knj5qynh m9osqain hzawbc8m"]'
+                ).get_attribute('innerText'))
+            except:
+                event_row.append('Event co-ordinates does not exist')
+            # event page url
+            event_row.append(driver.current_url)
+            driver.back()
+            elementFinder('//div[@class="j83agx80 l9j0dhe7 k4urcfbm" and ./descendant::span[contains(text(),"Upcoming events")]]/descendant::div[@class="j83agx80 cbu4d94t mysgfdmx hddg9phg"]')
+            df_csv.loc[len(df_csv)] = event_row
+            df_csv.to_csv('Event Details {}.csv'.format(datetime.today().strftime('%Y-%m-%d')) ,index=False)
 
 if __name__ == '__main__':
     chromedriver_path = os.path.join(os.path.abspath(os.getcwd()), "chromedriver.exe")
@@ -85,77 +165,10 @@ if __name__ == '__main__':
     option.add_experimental_option("prefs", {"profile.default_content_setting_values.notifications": 1})
     option.add_argument("--disable-infobars")
     option.add_argument("start-maximized")
-    option.add_argument("--disable-extensions")
+    # option.add_argument("--disable-extensions")
     driver = webdriver.Chrome(chromedriver_path,chrome_options=option)
     print('Running Chromedriver....')
     # driver.maximize_window()
     event_scraper()
     print('Done')
 
-# def finviz():
-#     elementFinder('//a[text()="Screener"]','click')
-#     elementFinder('//table[@class="screener-view-table"]/descendant::a[text()="Custom"]','click')
-#     try:
-#         elementFinder('//a[@class="filter" and contains(text(),"Settings")]','click')
-#     except:
-#         pass
-#     should_restart = True
-#     while should_restart:
-#         try:
-#             waiting = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//td[@class="filters-border"]/descendant::tr')))
-#             list_of_columns = driver.find_elements_by_xpath('//td[@class="filters-border"]/descendant::tr')
-#             should_restart = False
-#             for row in list_of_columns:
-#                 columns = row.find_elements_by_xpath('./td')
-#                 for column in columns:
-#                     if column.find_element_by_xpath('./input[@type="checkbox"]').get_attribute('checked') != 'true':
-#                         column.find_element_by_xpath('./input[@type="checkbox"]').click()
-#                         should_restart = True
-#                         break
-#                 if should_restart == True:
-#                     break
-#         except:
-#             try:
-#                 elementFinder('//button[@class="modal-elite-ad_close"]','click')
-#                 should_restart = True
-#             except:
-#                 should_restart = False
-#
-# def save_table():
-#     df = pd.DataFrame()
-#     elementFinder('//select[@id="signalSelect"]')
-#     columns_tags = driver.find_elements_by_xpath('(//div[@id="screener-content"]/descendant::table)[4]/descendant::tr[1]/td')
-#     columns = [col.get_attribute('innerText') for col in columns_tags]
-#     columns.insert(1, 'URL')
-#     columns.extend(['Signal'])
-#     signals = pd.read_csv('signal.csv')
-#     signals_list =  signals['Selected signals'].tolist()
-#     signals_list = [x for x in signals_list if str(x) != 'nan']
-#     for signal in signals_list:
-#         elementFinder('//select[@id="signalSelect"]/option[text()="{}"]'.format(signal))
-#         driver.find_element_by_xpath('//select[@id="signalSelect"]/option[text()="{}"]'.format(signal)).click()
-#         elementFinder('//select[@id="signalSelect"]/option[text()="{}"]'.format(signal))
-#         data = []
-#         table = driver.find_element_by_xpath('(//div[@id="screener-content"]/descendant::table)[4]')
-#         next_page = True
-#         while next_page:
-#             table = driver.find_element_by_xpath('(//div[@id="screener-content"]/descendant::table)[4]')
-#             body = table.find_elements_by_xpath('./descendant::tr')
-#             for row in body:
-#                 cells = row.find_elements_by_xpath('./td')
-#                 # dont add header row
-#                 if cells[1].get_attribute('innerText') != 'Ticker':
-#                     one_row = []
-#                     one_row = [cell.get_attribute('innerText') for cell in cells]
-#                     one_row.insert(1,cells[1].find_element_by_xpath('./a').get_attribute('href'))
-#                     one_row.extend(['{}'.format(signal)])
-#                     data.append(one_row)
-#             try:
-#                 elementFinder('//a[@class="screener_arrow"]','click')
-#             except:
-#                 next_page = False
-#         current_signal = pd.DataFrame(data)
-#         df = df.append(current_signal)
-#         df.to_csv('finviz {}.csv'.format(datetime.today().strftime('%Y-%m-%d')), index=False)
-#     df.columns = columns
-#     df.to_csv('finviz {}.csv'.format(datetime.today().strftime('%Y-%m-%d')), index=False)
