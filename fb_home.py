@@ -156,13 +156,16 @@ def event_scraper():
             df_csv.to_csv('Event Details {}.csv'.format(datetime.today().strftime('%Y-%m-%d')) ,index=False)
 
 if __name__ == '__main__':
-    chromedriver_path = os.path.join(os.path.abspath(os.getcwd()), "chromedriver.exe")
+    GOOGLE_CHROME_PATH = '/app/.apt/usr/bin/google_chrome'
+    CHROMEDRIVER_PATH = '/app/.chromedriver/bin/chromedriver'
     option = Options()
     option.add_experimental_option("prefs", {"profile.default_content_setting_values.notifications": 1})
     option.add_argument("--disable-infobars")
-    option.add_argument("start-maximized")
+    option.add_argument('--disable-gpu')
+    option.add_argument('--no-sandbox')
+    option.binary_location = GOOGLE_CHROME_PATH
     # option.add_argument("--disable-extensions")
-    driver = webdriver.Chrome(chromedriver_path,chrome_options=option)
+    driver = webdriver.Chrome(CHROMEDRIVER_PATH,chrome_options=option)
     print('Running Chromedriver....')
     # driver.maximize_window()
     event_scraper()
